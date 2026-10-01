@@ -90,7 +90,34 @@ test('extensão: lê o sino e pausa/publica no Wilboor', { timeout: 600000 }, as
     });
     state.slowFilter = 0;
 
-    // 4) Sessão do obaobamix expirada: avisa e não mexe no Wilboor
+    // 4) Janela de trabalho fechada no meio: reabre e continua
+    products.find((p) => p.sku === 'OOM-0002').paused = false;
+    products.find((p) => p.sku === 'OOM-0001').paused = true;
+    state.clicks = [];
+    const running = sw.evaluate(() => globalThis.runSync({ trigger: 'teste', dryRun: false }));
+    let closed = false;
+    for (let i = 0; i < 120 && !closed; i += 1) {
+      await new Promise((r) => setTimeout(r, 500));
+      const painel = context.pages().find((pg) => pg.url().includes('/painel/produtos'));
+      if (painel) {
+        await new Promise((r) => setTimeout(r, 3000));
+        await painel.close().catch(() => {});
+        closed = true;
+      }
+    }
+    assert.ok(closed, 'a janela do painel deveria ter aparecido');
+    const reopened = await running;
+    console.log(reopened.log.join('\n'));
+    assert.ifError(reopened.fatal);
+    assert.ok(reopened.log.some((l) => /reabrindo/.test(l)), 'deveria ter reaberto a janela');
+    assert.deepStrictEqual(Object.fromEntries(reopened.actions.map((a) => [a.code, a.result])), {
+      'OOM-0004': 'sem-alteracao',
+      'OOM-7777': 'nao-cadastrado',
+      'OOM-0002': 'pausado',
+      'OOM-0001': 'publicado',
+    });
+
+    // 5) Sessão do obaobamix expirada: avisa e não mexe no Wilboor
     await context.clearCookies();
     const expired = await sw.evaluate(() => globalThis.runSync({ trigger: 'teste', dryRun: false }));
     assert.match(expired.fatal, /Sessão do obaobamix expirada/);

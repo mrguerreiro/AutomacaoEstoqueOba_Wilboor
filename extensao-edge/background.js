@@ -86,6 +86,11 @@ function notify(id, title, message) {
 
 // ---------- Execução ----------
 
+/** A aba/janela de trabalho deixou de existir (foi fechada). */
+function isWindowGone(err) {
+  return /no tab with id|no window with id|frame with id \d+ was removed|tab was closed|no frame with id/i.test(String(err && err.message));
+}
+
 let running = false;
 
 export async function runSync({ trigger, dryRun } = {}) {
@@ -96,13 +101,17 @@ export async function runSync({ trigger, dryRun } = {}) {
   const run = { startedAt: new Date().toISOString(), trigger, dryRun: simular, log: [], actions: [] };
   const log = (m) => run.log.push(`${new Date().toLocaleTimeString('pt-BR')} ${m}`);
 
+  // Janela minimizada de trabalho. Se ela for fechada no meio (por engano ou pelo
+  // próprio Edge), é reaberta e o trabalho continua do produto em que parou.
   let win;
-  try {
+  const openWindow = async () => {
+    if (win) await chrome.windows.remove(win.id).catch(() => {});
     win = await chrome.windows.create({ url: 'about:blank', state: 'minimized', focused: false });
-    const obaTab = win.tabs[0].id;
-    const wilTab = (await chrome.tabs.create({ windowId: win.id, url: 'about:blank', active: false })).id;
-
+    return win.tabs[0].id;
+  };
+  try {
     // 1) obaobamix: ler notificações
+    const obaTab = await openWindow();
     log('Abrindo obaobamix...');
     await go(obaTab, settings.obaUrl);
     const obaState = await exec(obaTab, pageState);
@@ -118,15 +127,31 @@ export async function runSync({ trigger, dryRun } = {}) {
     log(`${oba.texts.length} notificação(ões) lida(s); ${todo.length} produto(s) com Esgotou!/Voltou!`);
 
     // 2) Wilboor: entrar
-    if (todo.length) await openWilboor(wilTab, settings, log);
+    let wilTab;
+    let reopenings = 0;
+    const reopenWilboor = async () => {
+      wilTab = await openWindow();
+      await openWilboor(wilTab, settings, log);
+    };
+    if (todo.length) await reopenWilboor();
 
     // 3) Para cada código, pausar/publicar
     for (const item of todo) {
-      try {
-        run.actions.push(await applyStatus(wilTab, item, settings, simular, log));
-      } catch (err) {
-        log(`${item.code}: ERRO — ${err.message}`);
-        run.actions.push({ ...item, result: 'erro', error: err.message });
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          run.actions.push(await applyStatus(wilTab, item, settings, simular, log));
+          break;
+        } catch (err) {
+          if (attempt === 0 && isWindowGone(err) && reopenings < 5) {
+            reopenings += 1;
+            log(`A janela de trabalho foi fechada; reabrindo e continuando de ${item.code}...`);
+            await reopenWilboor();
+            continue;
+          }
+          log(`${item.code}: ERRO — ${err.message}`);
+          run.actions.push({ ...item, result: 'erro', error: err.message });
+          break;
+        }
       }
     }
     log('Concluído.');
