@@ -35,9 +35,17 @@ const config = {
     loginUrl: env('OBA_LOGIN_URL', 'https://app.obaobamix.com.br/'),
     user: env('OBA_USER'),
     password: env('OBA_PASSWORD'),
+    // Sessão salva com "npm run salvar-sessao" (o site pede captcha no login).
+    // OBA_SESSION: conteúdo do arquivo (JSON ou base64) — usado no GitHub Actions.
+    // OBA_SESSION_FILE: caminho do arquivo — usado no computador.
+    session: env('OBA_SESSION'),
+    sessionFile: env('OBA_SESSION_FILE', 'oba-session.json'),
     bellSelector: env(
       'OBA_BELL_SELECTOR',
       [
+        'a:has([class*="bell"])',
+        'button:has([class*="bell"])',
+        '[role="button"]:has([class*="bell"])',
         '[aria-label*="notifica" i]',
         '[title*="notifica" i]',
         '[class*="notification" i] button',
@@ -65,6 +73,7 @@ const config = {
     searchSelector: env(
       'WILBOOR_SEARCH_SELECTOR',
       [
+        'input[placeholder*="filtrar" i]',
         'input[type="search"]',
         'input[name*="busca" i]',
         'input[name*="search" i]',
@@ -82,10 +91,27 @@ const config = {
   },
 };
 
+/** Retorna o storageState do Playwright para o obaobamix, ou undefined. */
+function loadObaSession() {
+  const fs = require('node:fs');
+  let raw = config.oba.session;
+  if (!raw && fs.existsSync(config.oba.sessionFile)) raw = fs.readFileSync(config.oba.sessionFile, 'utf8');
+  if (!raw) return undefined;
+  raw = raw.trim();
+  if (!raw.startsWith('{')) raw = Buffer.from(raw, 'base64').toString('utf8');
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error('OBA_SESSION inválida. Gere de novo com "npm run salvar-sessao".');
+  }
+}
+
 function assertCredentials() {
   const missing = [];
-  if (!config.oba.user) missing.push('OBA_USER');
-  if (!config.oba.password) missing.push('OBA_PASSWORD');
+  if (!config.oba.session && !require('node:fs').existsSync(config.oba.sessionFile)) {
+    if (!config.oba.user) missing.push('OBA_USER (ou OBA_SESSION)');
+    if (!config.oba.password) missing.push('OBA_PASSWORD (ou OBA_SESSION)');
+  }
   if (!config.wilboor.user) missing.push('WILBOOR_USER');
   if (!config.wilboor.password) missing.push('WILBOOR_PASSWORD');
   if (missing.length) {
@@ -93,4 +119,4 @@ function assertCredentials() {
   }
 }
 
-module.exports = { config, assertCredentials };
+module.exports = { config, assertCredentials, loadObaSession };

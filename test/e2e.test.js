@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createMockServer } = require('./mock-sites');
 
-test('fluxo completo contra sites simulados', async () => {
+test('fluxo completo contra sites simulados (sessão salva do obaobamix)', async () => {
   const products = [
     { name: 'Molho especial', sku: 'OOM-0001', paused: true }, // Esgotou -> Voltou: deve publicar
     { name: 'Pimenta', sku: 'OOM-0002', paused: false }, // Esgotou: deve pausar
@@ -21,8 +21,10 @@ test('fluxo completo contra sites simulados', async () => {
 
   Object.assign(process.env, {
     OBA_LOGIN_URL: `${base}/oba`,
-    OBA_USER: 'oba@x.com',
-    OBA_PASSWORD: '123',
+    // Só a sessão salva (sem usuário/senha), como no GitHub Actions
+    OBA_SESSION: Buffer.from(
+      JSON.stringify({ cookies: [{ name: 'sess', value: 'ok', domain: '127.0.0.1', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' }], origins: [] }),
+    ).toString('base64'),
     WILBOOR_LOGIN_URL: `${base}/painel`,
     WILBOOR_PRODUCTS_URL: `${base}/painel/produtos`,
     WILBOOR_USER: 'admin',

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dry-run": "DRY_RUN=true node src/index.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "salvar-sessao": "node src/salvar-sessao.js"
   },
   "repository": {
     "type": "git",

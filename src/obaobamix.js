@@ -20,7 +20,31 @@ async function openBell(page, cfg) {
   await page.waitForTimeout(1500);
 }
 
+/** Rola a lista do sino até o fim, para carregar notificações sob demanda. */
+async function scrollNotifications(page) {
+  for (let i = 0; i < 30; i += 1) {
+    const changed = await page.evaluate((statusRe) => {
+      const re = new RegExp(statusRe, 'i');
+      const scrollables = [...document.querySelectorAll('body *')].filter((el) => {
+        const style = getComputedStyle(el);
+        return /(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 5 && re.test(el.innerText || '');
+      });
+      let moved = false;
+      for (const el of scrollables) {
+        const before = el.scrollTop;
+        el.scrollTop = el.scrollHeight;
+        if (el.scrollTop !== before) moved = true;
+      }
+      return moved;
+    }, NOTIFICATION_TEXT_RE);
+    if (!changed) return;
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForTimeout(700);
+  }
+}
+
 async function loadAll(page, cfg) {
+  await scrollNotifications(page);
   if (!cfg.loadMoreText) return;
   const re = new RegExp(cfg.loadMoreText, 'i');
   for (let i = 0; i < 30; i += 1) {

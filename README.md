@@ -10,7 +10,7 @@ Automação que, **todos os dias às 08h, 12h, 16h e 20h (horário de Brasília)
 |---|---|
 | **Esgotou!** | Se o código estiver cadastrado e o produto estiver publicado → clica em **Pausar**. Senão, vai para a próxima. |
 | **Voltou!**  | Se o código estiver cadastrado e o produto estiver **pausado** → clica em **Publicar**. Senão, vai para a próxima. |
-| **Novo!**    | Ignora e vai para a próxima. |
+| **Novo!** ou qualquer outra | Ignora e vai para a próxima. |
 
 Se o mesmo código aparecer mais de uma vez (ex.: *Esgotou!* e depois *Voltou!*), vale a notificação **mais recente**, para nunca
 pausar um produto que já voltou ao estoque. As ações são idempotentes: rodar de novo não “desfaz” nada.
@@ -19,13 +19,20 @@ pausar um produto que já voltou ao estoque. As ações são idempotentes: rodar
 
 O agendamento roda no próprio GitHub, sem precisar deixar computador ligado.
 
-1. No repositório, vá em **Settings → Secrets and variables → Actions → New repository secret** e crie:
-   - `OBA_USER` e `OBA_PASSWORD` — login do obaobamix
+1. **Salve a sessão do obaobamix** (o login de lá tem captcha "Não sou um robô", então ele é feito por você uma vez):
+   no seu computador, siga “Rodar no seu computador” abaixo até o `npm install` e rode `npm run salvar-sessao`.
+   Um navegador abre; faça login normalmente (marque o captcha), espere o Dashboard aparecer e pressione ENTER
+   no terminal. Ele mostra um texto longo — esse é o valor do secret `OBA_SESSION`.
+2. No repositório, vá em **Settings → Secrets and variables → Actions → New repository secret** e crie:
+   - `OBA_SESSION` — o texto gerado no passo 1
+   - `OBA_USER` e `OBA_PASSWORD` — login do obaobamix (usado só se a sessão expirar: a automação marca a caixinha
+     do captcha; se o Google pedir o desafio de imagens, ela para e o GitHub te avisa por e-mail — aí é só repetir o passo 1
+     e atualizar o `OBA_SESSION`)
    - `WILBOOR_USER` e `WILBOOR_PASSWORD` — login do painel Wilboor
-2. Faça o merge deste código na branch principal (`master`). O GitHub só executa agendamentos da branch principal.
-3. Teste manualmente em **Actions → Sincronizar estoque obaobamix -> Wilboor → Run workflow**, marcando
+3. Faça o merge deste código na branch principal (`master`). O GitHub só executa agendamentos da branch principal.
+4. Teste manualmente em **Actions → Sincronizar estoque obaobamix -> Wilboor → Run workflow**, marcando
    **“Somente simular”** na primeira vez. O log mostra cada notificação e o que seria feito.
-4. Cada execução gera um artefato `relatorio-N` com `relatorio.json` e capturas de tela em caso de erro.
+5. Cada execução gera um artefato `relatorio-N` com `relatorio.json` e capturas de tela em caso de erro.
    Se algo falhar, o GitHub envia e-mail avisando.
 
 > O GitHub pode atrasar execuções agendadas em alguns minutos em horários de pico. O horário está em
@@ -39,6 +46,7 @@ Requer Node.js 20.12 ou mais recente.
 npm install
 npx playwright install chromium
 cp .env.example .env      # preencha usuário e senha
+npm run salvar-sessao     # login manual no obaobamix (captcha); gera oba-session.json
 npm run dry-run           # simula, sem clicar em nada
 npm start                 # executa de verdade
 ```

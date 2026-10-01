@@ -37,11 +37,12 @@ async function markProduct(page, code, cfg) {
       const publishRe = new RegExp(`^\\s*${publishText}\\b`, 'i');
       const visible = (el) =>
         typeof el.checkVisibility === 'function' ? el.checkVisibility() : el.offsetParent !== null;
+      // Remove ícones/símbolos antes do texto (ex.: "⏸ Pausar", "▶ Publicar").
       const labelOf = (el) =>
         [el.innerText, el.value, el.getAttribute('title'), el.getAttribute('aria-label'), el.getAttribute('data-original-title')]
           .filter(Boolean)
           .join(' ')
-          .trim();
+          .replace(/^[^\p{L}]+/u, '');
       const actionsIn = (root) =>
         [...root.querySelectorAll('button, a, [role="button"], input[type="button"], input[type="submit"]')].filter(visible);
       const kindOf = (el) => {
@@ -82,23 +83,14 @@ async function searchFor(page, code, cfg) {
   return true;
 }
 
-async function clearSearch(page, cfg) {
-  const search = await firstVisible(page.locator(cfg.searchSelector));
-  if (!search) return;
-  await search.fill('');
-  await search.press('Enter');
-  await page.waitForLoadState('networkidle').catch(() => {});
-  await page.waitForTimeout(800);
-}
-
 /** Procura o produto: primeiro pela busca do painel, depois página a página. */
 async function locateProduct(page, code, cfg) {
-  const searched = await searchFor(page, code, cfg);
+  await searchFor(page, code, cfg);
   let state = await markProduct(page, code, cfg);
   if (state.found) return state;
 
-  if (searched) await clearSearch(page, cfg);
-  else await openProducts(page, cfg);
+  // Não achou pela busca: recarrega a listagem (sem filtro, página 1) e procura página a página.
+  await openProducts(page, cfg);
 
   const nextRe = new RegExp(cfg.nextPageText, 'i');
   for (let p = 1; p < cfg.maxPages; p += 1) {

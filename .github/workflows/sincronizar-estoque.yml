@@ -30,6 +30,7 @@ jobs:
       - name: Executar sincronização
         run: npm start
         env:
+          OBA_SESSION: ${{ secrets.OBA_SESSION }}
           OBA_USER: ${{ secrets.OBA_USER }}
           OBA_PASSWORD: ${{ secrets.OBA_PASSWORD }}
           WILBOOR_USER: ${{ secrets.WILBOOR_USER }}

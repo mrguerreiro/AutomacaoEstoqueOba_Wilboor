@@ -28,8 +28,30 @@ async function isLoginPage(page) {
   return Boolean(await firstVisible(page.locator(PASSWORD_FIELD)));
 }
 
+/**
+ * Marca a caixinha "Não sou um robô" (reCAPTCHA), se existir. Não tenta resolver
+ * desafios de imagem: se o Google pedir um, a execução para com erro.
+ */
+async function tickRecaptcha(page, label) {
+  const frameSel = 'iframe[src*="recaptcha"][src*="anchor"], iframe[title*="reCAPTCHA" i]';
+  if (!(await page.locator(frameSel).first().isVisible().catch(() => false))) return;
+  const frame = page.frameLocator(frameSel).first();
+  await frame.locator('#recaptcha-anchor').click();
+  try {
+    await frame.locator('#recaptcha-anchor[aria-checked="true"]').waitFor({ timeout: 15000 });
+  } catch {
+    throw new Error(
+      `[${label}] O captcha pediu um desafio de imagens e a sessão salva expirou. ` +
+        'Rode "npm run salvar-sessao" no seu computador e atualize o secret OBA_SESSION.',
+    );
+  }
+}
+
 /** Preenche um formulário de login genérico (usuário + senha) e envia. */
 async function login(page, { user, password, label }) {
+  if (!user || !password) {
+    throw new Error(`[${label}] Sessão expirada e sem usuário/senha configurados. Rode "npm run salvar-sessao".`);
+  }
   const passwordField = await firstVisible(page.locator(PASSWORD_FIELD));
   if (!passwordField) return false;
 
@@ -41,6 +63,7 @@ async function login(page, { user, password, label }) {
 
   await userField.fill(user);
   await passwordField.fill(password);
+  await tickRecaptcha(page, label);
 
   const submit =
     (await firstVisible(scope.locator('button[type="submit"], input[type="submit"]'))) ||

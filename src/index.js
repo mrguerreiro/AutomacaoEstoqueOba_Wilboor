@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
-const { config, assertCredentials } = require('./config');
+const { config, assertCredentials, loadObaSession } = require('./config');
 const { fetchNotifications } = require('./obaobamix');
 const { openProducts, applyStatus } = require('./wilboor');
 const { parseNotifications, latestActionPerCode } = require('./notifications');
@@ -18,11 +18,14 @@ async function run() {
     headless: config.headless,
     ...(config.chromiumPath ? { executablePath: config.chromiumPath } : {}),
   });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'pt-BR' });
-  context.setDefaultTimeout(config.timeoutMs);
+  const contextOptions = { viewport: { width: 1440, height: 900 }, locale: 'pt-BR' };
+  const obaContext = await browser.newContext({ ...contextOptions, storageState: loadObaSession() });
+  const wilContext = await browser.newContext(contextOptions);
+  obaContext.setDefaultTimeout(config.timeoutMs);
+  wilContext.setDefaultTimeout(config.timeoutMs);
 
-  const obaPage = await context.newPage();
-  const wilPage = await context.newPage();
+  const obaPage = await obaContext.newPage();
+  const wilPage = await wilContext.newPage();
   wilPage.on('dialog', (dialog) => dialog.accept().catch(() => {}));
 
   const report = { startedAt: new Date().toISOString(), dryRun: config.dryRun, actions: [] };
