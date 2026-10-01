@@ -1,9 +1,10 @@
 'use strict';
 
-const { firstVisible, isLoginPage, login } = require('./browser-utils');
+const { firstVisible, assertNotBlocked, isLoginPage, login } = require('./browser-utils');
 
 async function openProducts(page, cfg) {
   await page.goto(cfg.productsUrl, { waitUntil: 'networkidle' });
+  await assertNotBlocked(page, 'wilboor');
   if (await isLoginPage(page)) {
     // O painel pede apenas a senha.
     await login(page, { password: cfg.password, label: 'wilboor', passwordOnly: true });

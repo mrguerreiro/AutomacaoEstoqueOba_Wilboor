@@ -24,6 +24,18 @@ async function firstVisible(locator) {
   return null;
 }
 
+/** Falha com mensagem clara se o Cloudflare bloqueou o acesso. */
+async function assertNotBlocked(page, label) {
+  const title = await page.title().catch(() => '');
+  const text = await page.locator('body').innerText().catch(() => '');
+  if (/you have been blocked|attention required|access denied/i.test(`${title}\n${text}`) && /cloudflare/i.test(text)) {
+    throw new Error(
+      `[${label}] Acesso bloqueado pelo Cloudflare do site (${page.url()}). ` +
+        'O site não aceita acessos vindos deste computador/servidor.',
+    );
+  }
+}
+
 async function isLoginPage(page) {
   return Boolean(await firstVisible(page.locator(PASSWORD_FIELD)));
 }
@@ -89,4 +101,4 @@ async function login(page, { user, password, label, passwordOnly = false, missin
   return true;
 }
 
-module.exports = { firstVisible, isLoginPage, login };
+module.exports = { firstVisible, assertNotBlocked, isLoginPage, login };
