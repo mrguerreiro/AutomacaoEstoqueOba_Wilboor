@@ -124,6 +124,32 @@ export async function wilboorLocate(code, useFilter) {
     return { found: cards.length > 0, actions };
   };
 
+  // Espera o resultado da busca aparecer: até não sobrar na tela nenhum outro código
+  // OOM além do buscado (ou nenhum produto, se não estiver cadastrado).
+  const waitFiltered = async (maxMs) => {
+    const end = Date.now() + maxMs;
+    while (Date.now() < end) {
+      const codes = (document.body.innerText.match(/OOM-\d{4}/gi) || []).map((c) => c.toUpperCase());
+      if (codes.every((c) => c === code.toUpperCase())) {
+        await sleep(800); // deixa terminar de desenhar
+        return true;
+      }
+      await sleep(500);
+    }
+    return false;
+  };
+
+  // Procura de novo por alguns segundos antes de concluir que não achou.
+  const scanPatiently = async (ms) => {
+    const end = Date.now() + ms;
+    let result = scan();
+    while (!result.found && Date.now() < end) {
+      await sleep(1000);
+      result = scan();
+    }
+    return result;
+  };
+
   if (useFilter) {
     const input = [...document.querySelectorAll('input')].find(
       (i) => visible(i) && /filtr|busca|pesquis|procur|search/i.test(`${i.placeholder} ${i.name} ${i.type}`),
@@ -133,14 +159,16 @@ export async function wilboorLocate(code, useFilter) {
       setter.call(input, code);
       for (const type of ['input', 'change']) input.dispatchEvent(new Event(type, { bubbles: true }));
       input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: code.slice(-1) }));
-      await sleep(1500);
-      const result = scan();
-      if (result.found || !input.form) return result;
+      // O resultado pode demorar: espera a lista mostrar só o código buscado.
+      await sleep(500);
+      const filtered = await waitFiltered(15000);
+      const result = await scanPatiently(filtered ? 1500 : 3000);
+      if (result.found || !input.form) return { ...result, filter: true };
       input.form.requestSubmit();
       return { submitted: true };
     }
   }
-  return scan();
+  return { ...(await scanPatiently(2000)), filter: false };
 }
 
 /** Wilboor: clica no botão marcado por wilboorLocate. */

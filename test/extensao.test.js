@@ -9,7 +9,7 @@ const path = require('node:path');
 const { chromium } = require('playwright');
 const { createMockServer } = require('./mock-sites');
 
-test('extensão: lê o sino e pausa/publica no Wilboor', { timeout: 180000 }, async () => {
+test('extensão: lê o sino e pausa/publica no Wilboor', { timeout: 600000 }, async () => {
   const products = [
     { name: 'Molho especial', sku: 'OOM-0001', paused: true },
     { name: 'Pimenta', sku: 'OOM-0002', paused: false },
@@ -73,7 +73,24 @@ test('extensão: lê o sino e pausa/publica no Wilboor', { timeout: 180000 }, as
     });
     assert.deepStrictEqual(state.clicks.sort(), ['OOM-0001:publicar', 'OOM-0002:pausar']);
 
-    // 3) Sessão do obaobamix expirada: avisa e não mexe no Wilboor
+    // 3) Busca do painel lenta (resultado só aparece ~3s depois de digitar) e sem paginação:
+    //    não pode concluir "não cadastrado" antes do resultado chegar.
+    state.slowFilter = 3000;
+    products.find((p) => p.sku === 'OOM-0002').paused = false;
+    products.find((p) => p.sku === 'OOM-0001').paused = true;
+    state.clicks = [];
+    const slow = await sw.evaluate(() => globalThis.runSync({ trigger: 'teste', dryRun: false }));
+    console.log(slow.log.join('\n'));
+    assert.ifError(slow.fatal);
+    assert.deepStrictEqual(Object.fromEntries(slow.actions.map((a) => [a.code, a.result])), {
+      'OOM-0004': 'sem-alteracao',
+      'OOM-7777': 'nao-cadastrado',
+      'OOM-0002': 'pausado',
+      'OOM-0001': 'publicado',
+    });
+    state.slowFilter = 0;
+
+    // 4) Sessão do obaobamix expirada: avisa e não mexe no Wilboor
     await context.clearCookies();
     const expired = await sw.evaluate(() => globalThis.runSync({ trigger: 'teste', dryRun: false }));
     assert.match(expired.fatal, /Sessão do obaobamix expirada/);

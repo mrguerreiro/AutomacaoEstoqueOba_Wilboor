@@ -161,16 +161,23 @@ async function openWilboor(tabId, settings, log) {
 }
 
 async function locate(tabId, code, settings, { reset }) {
-  if (reset) await go(tabId, settings.wilboorUrl);
-  let r = await exec(tabId, wilboorLocate, [code, true]);
-  if (r.submitted) {
-    await waitComplete(tabId);
-    await sleep(1000);
-    r = await exec(tabId, wilboorLocate, [code, false]);
+  // Busca pelo filtro do painel; se não achar, recarrega a página e tenta mais uma vez
+  // (a busca do painel pode demorar ou falhar de vez em quando).
+  let r;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (reset || attempt > 0) await go(tabId, settings.wilboorUrl);
+    r = await exec(tabId, wilboorLocate, [code, true]);
+    if (r.submitted) {
+      await waitComplete(tabId);
+      await sleep(1000);
+      r = await exec(tabId, wilboorLocate, [code, false]);
+    }
+    if (r.found) return r;
   }
-  if (r.found) return r;
+  // Com o filtro do painel funcionando, o resultado dele é confiável.
+  if (r.filter) return { found: false, actions: [] };
 
-  // Não achou pelo filtro: percorre as páginas da listagem.
+  // Painel sem campo de filtro: percorre as páginas da listagem.
   await go(tabId, settings.wilboorUrl);
   for (let p = 0; p < 50; p += 1) {
     r = await exec(tabId, wilboorLocate, [code, false]);
@@ -203,21 +210,35 @@ async function applyStatus(tabId, { code, status }, settings, simular, log) {
   }
 
   // O painel pausa/publica direto no clique (sem confirmação).
-  for (let i = 0; i < r.actions.length; i += 1) {
-    if (r.actions[i] === wanted) await exec(tabId, wilboorClick, [i]);
+  let current = r;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let lost = false;
+    for (let i = 0; i < current.actions.length; i += 1) {
+      if (current.actions[i] === wanted && !(await exec(tabId, wilboorClick, [i])).ok) lost = true;
+    }
+    if (!lost) break;
+    // A lista foi redesenhada antes do clique: procura de novo e clica outra vez.
+    await sleep(1000);
+    current = await locate(tabId, code, settings, { reset: true });
+    if (!current.found) throw new Error('o produto sumiu da lista antes do clique');
   }
   await sleep(1500);
   await waitComplete(tabId);
 
-  // Confere se o botão trocou.
+  // Confere se o botão trocou. O painel pode ainda estar recarregando depois do
+  // clique, então abre a listagem de novo e tenta até 3 vezes.
   const opposite = wanted === 'pause' ? 'publish' : 'pause';
-  let check = await locate(tabId, code, settings, { reset: false });
-  if (!(check.found && check.actions.every((a) => a === opposite))) {
-    check = await locate(tabId, code, settings, { reset: true });
+  let confirmed = false;
+  for (let i = 0; i < 3 && !confirmed; i += 1) {
+    await sleep(1500 * (i + 1));
+    try {
+      const check = await locate(tabId, code, settings, { reset: true });
+      confirmed = check.found && check.actions.every((a) => a === opposite);
+    } catch {
+      // página trocou no meio da conferência; tenta de novo
+    }
   }
-  if (!(check.found && check.actions.every((a) => a === opposite))) {
-    throw new Error(`cliquei em "${verb}" mas o produto não mudou de estado`);
-  }
+  if (!confirmed) throw new Error(`cliquei em "${verb}" mas o produto não mudou de estado`);
   log(`${label} ${code}: ${wanted === 'pause' ? 'PAUSADO' : 'PUBLICADO'} (confirmado)`);
   return { code, status, result: wanted === 'pause' ? 'pausado' : 'publicado' };
 }
