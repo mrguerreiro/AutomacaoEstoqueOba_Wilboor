@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  body { font: 13px system-ui, sans-serif; width: 380px; margin: 12px; color: #222; }
+  h1 { font-size: 15px; margin: 0 0 10px; }
+  label { display: block; margin: 8px 0 4px; font-weight: 600; }
+  input[type=password], input[type=text] { width: 100%; box-sizing: border-box; padding: 6px; }
+  .row { display: flex; gap: 8px; margin-top: 10px; }
+  button { flex: 1; padding: 7px; cursor: pointer; }
+  .check { font-weight: normal; display: flex; gap: 6px; align-items: center; }
+  .hint { color: #666; font-size: 12px; }
+  pre { background: #f4f4f4; padding: 8px; max-height: 260px; overflow: auto; white-space: pre-wrap; font-size: 11.5px; }
+  #status { color: #0a6; min-height: 1em; }
+</style>
+</head>
+<body>
+  <h1>Estoque Oba → Wilboor</h1>
+
+  <label for="senha">Senha do painel Wilboor</label>
+  <input id="senha" type="password" autocomplete="off">
+
+  <label for="horarios">Horários (separados por vírgula)</label>
+  <input id="horarios" type="text">
+
+  <label class="check"><input id="dryRun" type="checkbox"> Somente simular (não clica em Pausar/Publicar)</label>
+
+  <div class="row">
+    <button id="salvar">Salvar</button>
+    <button id="simular">Simular agora</button>
+    <button id="executar">Executar agora</button>
+  </div>
+  <p id="status"></p>
+  <p class="hint">O Edge precisa estar aberto (pode ficar minimizado) e logado no obaobamix.</p>
+
+  <label>Última execução</label>
+  <pre id="log">Nenhuma execução ainda.</pre>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -15,47 +15,51 @@ Automação que, **todos os dias às 08h, 12h, 16h e 20h (horário de Brasília)
 Se o mesmo código aparecer mais de uma vez (ex.: *Esgotou!* e depois *Voltou!*), vale a notificação **mais recente**, para nunca
 pausar um produto que já voltou ao estoque. As ações são idempotentes: rodar de novo não “desfaz” nada.
 
-## Configuração (uma única vez) — GitHub Actions
+## Como funciona
 
-O agendamento roda no próprio GitHub, sem precisar deixar computador ligado.
+O obaobamix usa Cloudflare, que **bloqueia navegadores automatizados**. Por isso a automação é uma **extensão do
+Microsoft Edge** (pasta `extensao-edge/`) que roda dentro do seu próprio navegador, onde você já está logado.
 
-1. **Salve a sessão do obaobamix** (o login de lá tem captcha "Não sou um robô", então ele é feito por você uma vez):
-   no seu computador, siga “Rodar no seu computador” abaixo até o `npm install` e rode `npm run salvar-sessao`.
-   Um navegador abre; faça login normalmente (marque o captcha), espere o Dashboard aparecer e pressione ENTER
-   no terminal. Ele mostra um texto longo — esse é o valor do secret `OBA_SESSION`.
-2. No repositório, vá em **Settings → Secrets and variables → Actions → New repository secret** e crie:
-   - `OBA_SESSION` — o texto gerado no passo 1
-   - `OBA_USER` e `OBA_PASSWORD` — login do obaobamix (usado só se a sessão expirar: a automação marca a caixinha
-     do captcha; se o Google pedir o desafio de imagens, ela para e o GitHub te avisa por e-mail — aí é só repetir o passo 1
-     e atualizar o `OBA_SESSION`)
-   - `WILBOOR_PASSWORD` — senha do painel Wilboor (o painel não tem usuário, só senha)
-3. Faça o merge deste código na branch principal (`master`). O GitHub só executa agendamentos da branch principal.
-4. Teste manualmente em **Actions → Sincronizar estoque obaobamix -> Wilboor → Run workflow**, marcando
-   **“Somente simular”** na primeira vez. O log mostra cada notificação e o que seria feito.
-5. Cada execução gera um artefato `relatorio-N` com `relatorio.json` e capturas de tela em caso de erro.
-   Se algo falhar, o GitHub envia e-mail avisando.
+- Nos horários configurados (padrão 08h, 12h, 16h e 20h), ela abre uma janela minimizada, lê o sino do obaobamix,
+  entra no painel Wilboor e pausa/publica os produtos. Depois fecha a janela.
+- **Wilboor deslogou?** A extensão entra sozinha com a senha salva nela.
+- **obaobamix deslogou?** O login de lá tem captcha, que a extensão **não** resolve: ela pula a execução e mostra
+  um aviso do Windows "Faça login no obaobamix". Clique no aviso, entre no site (marque "Lembrar-me", se houver) e
+  as próximas execuções voltam a funcionar.
+- Ela começa em **"Somente simular"**: mostra o que faria, sem clicar. Desmarque quando conferir que está certo.
+- Ao final, mostra um aviso com quantos produtos foram pausados/publicados, ou se algo falhou.
 
-> O GitHub pode atrasar execuções agendadas em alguns minutos em horários de pico. O horário está em
-> `.github/workflows/sincronizar-estoque.yml` (em UTC: 11h, 15h, 19h e 23h = 08h, 12h, 16h e 20h em Brasília).
+## Instalação no Edge (uma única vez)
 
-## Rodar no seu computador
+1. Baixe/atualize o projeto (`git pull`) — a extensão está na pasta `extensao-edge`.
+2. No Edge, abra `edge://extensions`, ligue **"Modo do desenvolvedor"** e clique em **"Carregar descompactado"**.
+   Escolha a pasta `extensao-edge`.
+3. Clique no ícone de quebra-cabeça da barra do Edge e fixe **"Estoque Oba → Wilboor"**. Clique nele:
+   - digite a **senha do painel Wilboor** e clique em **Salvar**;
+   - esteja logado no obaobamix e clique em **Simular agora**. O log aparece na própria janelinha.
+4. Se a simulação estiver certa, desmarque **"Somente simular"** e clique em **Salvar**.
 
-Requer Node.js 20.12 ou mais recente.
+### Para rodar com o PC "parado"
 
-```bash
-npm install
-npx playwright install chromium
-cp .env.example .env      # preencha as credenciais
-npm run salvar-sessao     # login manual no obaobamix (captcha); gera oba-session.json
-npm run dry-run           # simula, sem clicar em nada
-npm start                 # executa de verdade
-```
+- **Edge fechado:** em `edge://settings/system`, ligue **"Continuar executando extensões e aplicativos em segundo
+  plano quando o Microsoft Edge estiver fechado"**.
+- **PC suspenso/hibernando:** crie a tarefa que acorda o PC antes dos horários (no PowerShell, na pasta do projeto):
 
-Use `HEADFUL=true` no `.env` para ver o navegador trabalhando. Para agendar localmente (Linux/macOS), use o cron:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File windows\acordar-pc.ps1
+  ```
 
-```
-0 8,12,16,20 * * * cd /caminho/AutomacaoEstoqueOba_Wilboor && npm start >> automacao.log 2>&1
-```
+  Se o PC perdeu um horário dormindo, a extensão roda assim que ele acordar. **Desligado**, nada roda.
+
+> Em notebook na bateria ou em PCs com "Modern Standby", o Windows pode ignorar o pedido para acordar. Nesses casos,
+> configure o PC para não suspender quando estiver na tomada.
+
+> A senha do Wilboor fica guardada nas configurações da extensão, no seu perfil do Edge, neste PC.
+
+## Versão por linha de comando (Playwright)
+
+A pasta `src/` tem a mesma automação usando Playwright (`npm start`, `npm run dry-run`). Ela **é bloqueada pelo
+Cloudflare do obaobamix** e fica apenas como referência e para os testes.
 
 ## Ajustes caso o layout dos sites mude
 
@@ -70,4 +74,5 @@ podem ser ajustados por variáveis de ambiente — veja `src/config.js` (por exe
 npm test
 ```
 
-Inclui testes da interpretação das notificações e um teste ponta a ponta contra versões simuladas dos dois sites.
+Inclui testes da interpretação das notificações e testes ponta a ponta (extensão e Playwright) contra versões
+simuladas dos dois sites.

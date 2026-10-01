@@ -22,8 +22,8 @@ const bool = (name, fallback = false) => {
 };
 
 const config = {
-  dryRun: bool('DRY_RUN', false),
-  headless: !bool('HEADFUL', false),
+  dryRun: bool('DRY_RUN', false) || process.argv.includes('--dry-run'),
+  headless: !bool('HEADFUL', false) && !process.argv.includes('--headful'),
   timeoutMs: Number(env('TIMEOUT_MS', 30000)),
   artifactsDir: env('ARTIFACTS_DIR', 'artifacts'),
   chromiumPath: env('CHROMIUM_PATH'),

@@ -1,9 +1,9 @@
 name: Sincronizar estoque obaobamix -> Wilboor
 
+# Sem agendamento: o Cloudflare do obaobamix bloqueia navegadores automatizados.
+# A automação roda pela extensão do Edge (pasta extensao-edge/). Este workflow
+# fica só para execução manual da versão Playwright.
 on:
-  schedule:
-    # 08h, 12h, 16h e 20h no horário de Brasília (UTC-3) = 11h, 15h, 19h e 23h UTC
-    - cron: '0 11,15,19,23 * * *'
   workflow_dispatch:
     inputs:
       dry_run:

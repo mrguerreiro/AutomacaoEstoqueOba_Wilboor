@@ -1,12 +1,13 @@
 'use strict';
 
-const { firstVisible, isLoginPage, login } = require('./browser-utils');
+const { firstVisible, assertNotBlocked, isLoginPage, login } = require('./browser-utils');
 
 const NOTIFICATION_TEXT_RE = '(esgotou|voltou|novo)\\s*!';
 const CODE_RE = 'OOM-\\d{4}';
 
 async function openObaobamix(page, cfg) {
   await page.goto(cfg.loginUrl, { waitUntil: 'networkidle' });
+  await assertNotBlocked(page, 'obaobamix');
   if (await isLoginPage(page)) {
     await login(page, {
       user: cfg.user,
@@ -18,8 +19,16 @@ async function openObaobamix(page, cfg) {
 }
 
 async function openBell(page, cfg) {
-  const bell = await firstVisible(page.locator(cfg.bellSelector));
-  if (!bell) throw new Error('[obaobamix] Sino de notificações não encontrado (ajuste OBA_BELL_SELECTOR)');
+  // Espera o sino aparecer (a página pode terminar de montar depois do carregamento).
+  let bell = null;
+  for (let i = 0; i < 15 && !bell; i += 1) {
+    bell = await firstVisible(page.locator(cfg.bellSelector));
+    if (!bell) await page.waitForTimeout(1000);
+  }
+  if (!bell) {
+    await assertNotBlocked(page, 'obaobamix');
+    throw new Error(`[obaobamix] Sino de notificações não encontrado em ${page.url()} (ajuste OBA_BELL_SELECTOR)`);
+  }
   await bell.click();
   await page.waitForLoadState('networkidle').catch(() => {});
   await page.waitForTimeout(1500);

@@ -6,6 +6,13 @@ const http = require('node:http');
 const page = (body, script = '') =>
   `<!doctype html><html><body>${body}<script>${script}</script></body></html>`;
 
+const cardHtml = (p) => `<div class="col"><div class="card">
+  ${p.paused ? '<span class="badge">PAUSADO</span>' : ''}<img alt="">
+  <div class="card-body"><small>#${p.sku}</small><h5>${p.name}</h5><p>R$ 10.00</p>
+    <div class="btns"><a class="btn">✎ Editar</a><a class="btn">☆ Destacar</a>
+    <a class="btn" href="#" onclick="return act('${p.sku}','${p.paused ? 'publicar' : 'pausar'}')"><i class="fa"></i>${p.paused ? '▶ Publicar' : '⏸ Pausar'}</a>
+    <a class="btn" href="#" onclick="alert('NÃO DEVERIA DELETAR');return false">🗑 Deletar</a></div></div></div></div>`;
+
 function createMockServer(products) {
   const state = { obaLogged: false, wilLogged: false, products };
 
@@ -40,24 +47,26 @@ function createMockServer(products) {
       const pg = Number(url.searchParams.get('p') || 1);
       const list = state.products.filter((p) => !q || p.sku.includes(q));
       const perPage = 2;
-      const cards = list.slice((pg - 1) * perPage, pg * perPage).map(
-        (p) => `<div class="col"><div class="card">
-          ${p.paused ? '<span class="badge">PAUSADO</span>' : ''}<img alt="">
-          <div class="card-body"><small>#${p.sku}</small><h5>${p.name}</h5><p>R$ 10.00</p>
-            <div class="btns"><a class="btn">✎ Editar</a><a class="btn">☆ Destacar</a>
-            <a class="btn" href="#" onclick="return act('${p.sku}','${p.paused ? 'publicar' : 'pausar'}')"><i class="fa"></i>${p.paused ? '▶ Publicar' : '⏸ Pausar'}</a>
-            <a class="btn" href="#" onclick="alert('NÃO DEVERIA DELETAR');return false">🗑 Deletar</a></div></div></div></div>`,
-      );
-      const hasNext = pg * perPage < list.length;
+      const cards = list.slice((pg - 1) * perPage, pg * perPage).map(cardHtml);
+      // slowFilter: como um painel com busca no servidor (lenta) e sem paginação clássica
+      const hasNext = !state.slowFilter && pg * perPage < list.length;
+      // Busca no servidor sobre o catálogo inteiro; com slowFilter, o resultado demora.
+      const filtScript = `let t; function filt(v){ clearTimeout(t); t=setTimeout(()=>fetch('/painel/busca?q='+encodeURIComponent(v))
+             .then(r=>r.text()).then(h=>{document.querySelector('.row').innerHTML=h}), ${state.slowFilter || 0}); }`;
       return page(
         `<input type="text" placeholder="Filtrar por nome ou código..." oninput="filt(this.value)">
          <select><option>Todos os departamentos</option></select>
          <div class="row">${cards.join('')}</div>
          ${hasNext ? `<a href="/painel/produtos?p=${pg + 1}">Próxima</a>` : ''}`,
-        `function filt(v){ document.querySelectorAll('.col').forEach(c=>{c.style.display=c.innerText.toUpperCase().includes(v.toUpperCase())?'':'none'}) }
+        `${filtScript}
          function act(sku,a){
            fetch('/painel/acao',{method:'POST',body:sku+'|'+a}).then(()=>location.reload()); return false; }`,
       );
+    },
+    'GET /painel/busca': (_b, _r, url) => {
+      if (!state.wilLogged) return null;
+      const q = (url.searchParams.get('q') || '').toUpperCase();
+      return state.products.filter((p) => !q || p.sku.includes(q) || p.name.toUpperCase().includes(q)).slice(0, 2).map(cardHtml).join('');
     },
     'GET /painel': () =>
       page(`<form method="post" action="/painel/login"><input type="password" name="senha" placeholder="Senha"><button>Acessar</button></form>`),
