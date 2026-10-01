@@ -1,0 +1,26 @@
+{
+  "name": "automacao-estoque-oba-wilboor",
+  "version": "1.0.0",
+  "description": "Sincroniza notificações de estoque do obaobamix (Esgotou!/Voltou!) com o painel Wilboor",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dry-run": "DRY_RUN=true node src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrguerreiro/AutomacaoEstoqueOba_Wilboor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mrguerreiro/AutomacaoEstoqueOba_Wilboor/issues"
+  },
+  "homepage": "https://github.com/mrguerreiro/AutomacaoEstoqueOba_Wilboor#readme",
+  "dependencies": {
+    "playwright": "^1.56.1"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20.12"
+  }
+}
