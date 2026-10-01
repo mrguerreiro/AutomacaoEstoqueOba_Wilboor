@@ -28,7 +28,7 @@ O agendamento roda no próprio GitHub, sem precisar deixar computador ligado.
    - `OBA_USER` e `OBA_PASSWORD` — login do obaobamix (usado só se a sessão expirar: a automação marca a caixinha
      do captcha; se o Google pedir o desafio de imagens, ela para e o GitHub te avisa por e-mail — aí é só repetir o passo 1
      e atualizar o `OBA_SESSION`)
-   - `WILBOOR_USER` e `WILBOOR_PASSWORD` — login do painel Wilboor
+   - `WILBOOR_PASSWORD` — senha do painel Wilboor (o painel não tem usuário, só senha)
 3. Faça o merge deste código na branch principal (`master`). O GitHub só executa agendamentos da branch principal.
 4. Teste manualmente em **Actions → Sincronizar estoque obaobamix -> Wilboor → Run workflow**, marcando
    **“Somente simular”** na primeira vez. O log mostra cada notificação e o que seria feito.
@@ -45,7 +45,7 @@ Requer Node.js 20.12 ou mais recente.
 ```bash
 npm install
 npx playwright install chromium
-cp .env.example .env      # preencha usuário e senha
+cp .env.example .env      # preencha as credenciais
 npm run salvar-sessao     # login manual no obaobamix (captcha); gera oba-session.json
 npm run dry-run           # simula, sem clicar em nada
 npm start                 # executa de verdade

@@ -47,10 +47,13 @@ async function tickRecaptcha(page, label) {
   }
 }
 
-/** Preenche um formulário de login genérico (usuário + senha) e envia. */
-async function login(page, { user, password, label }) {
-  if (!user || !password) {
-    throw new Error(`[${label}] Sessão expirada e sem usuário/senha configurados. Rode "npm run salvar-sessao".`);
+/**
+ * Preenche um formulário de login genérico e envia.
+ * Com passwordOnly, a tela tem só o campo de senha (caso do painel Wilboor).
+ */
+async function login(page, { user, password, label, passwordOnly = false, missingHint = '' }) {
+  if (!password || (!passwordOnly && !user)) {
+    throw new Error(`[${label}] Login necessário, mas as credenciais não foram configuradas. ${missingHint}`.trim());
   }
   const passwordField = await firstVisible(page.locator(PASSWORD_FIELD));
   if (!passwordField) return false;
@@ -58,10 +61,11 @@ async function login(page, { user, password, label }) {
   const form = page.locator('form').filter({ has: page.locator(PASSWORD_FIELD) });
   const scope = (await form.count()) ? form.first() : page;
 
-  const userField = await firstVisible(scope.locator(USER_FIELD));
-  if (!userField) throw new Error(`[${label}] Campo de usuário/e-mail não encontrado na tela de login`);
-
-  await userField.fill(user);
+  if (!passwordOnly) {
+    const userField = await firstVisible(scope.locator(USER_FIELD));
+    if (!userField) throw new Error(`[${label}] Campo de usuário/e-mail não encontrado na tela de login`);
+    await userField.fill(user);
+  }
   await passwordField.fill(password);
   await tickRecaptcha(page, label);
 

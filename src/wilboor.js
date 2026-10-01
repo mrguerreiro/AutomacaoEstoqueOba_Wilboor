@@ -5,7 +5,8 @@ const { firstVisible, isLoginPage, login } = require('./browser-utils');
 async function openProducts(page, cfg) {
   await page.goto(cfg.productsUrl, { waitUntil: 'networkidle' });
   if (await isLoginPage(page)) {
-    await login(page, { user: cfg.user, password: cfg.password, label: 'wilboor' });
+    // O painel pede apenas a senha.
+    await login(page, { password: cfg.password, label: 'wilboor', passwordOnly: true });
     await page.goto(cfg.productsUrl, { waitUntil: 'networkidle' });
   }
   if (await isLoginPage(page)) throw new Error('[wilboor] Não foi possível acessar o painel após o login');

@@ -33,7 +33,6 @@ jobs:
           OBA_SESSION: ${{ secrets.OBA_SESSION }}
           OBA_USER: ${{ secrets.OBA_USER }}
           OBA_PASSWORD: ${{ secrets.OBA_PASSWORD }}
-          WILBOOR_USER: ${{ secrets.WILBOOR_USER }}
           WILBOOR_PASSWORD: ${{ secrets.WILBOOR_PASSWORD }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
       - name: Salvar relatório e capturas de tela

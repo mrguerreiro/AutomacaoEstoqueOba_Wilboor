@@ -8,7 +8,12 @@ const CODE_RE = 'OOM-\\d{4}';
 async function openObaobamix(page, cfg) {
   await page.goto(cfg.loginUrl, { waitUntil: 'networkidle' });
   if (await isLoginPage(page)) {
-    await login(page, { user: cfg.user, password: cfg.password, label: 'obaobamix' });
+    await login(page, {
+      user: cfg.user,
+      password: cfg.password,
+      label: 'obaobamix',
+      missingHint: 'A sessão salva expirou: rode "npm run salvar-sessao".',
+    });
   }
 }
 
