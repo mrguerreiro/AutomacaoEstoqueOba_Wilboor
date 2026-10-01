@@ -27,7 +27,6 @@ test('fluxo completo contra sites simulados (sessão salva do obaobamix)', async
     ).toString('base64'),
     WILBOOR_LOGIN_URL: `${base}/painel`,
     WILBOOR_PRODUCTS_URL: `${base}/painel/produtos`,
-    WILBOOR_USER: 'admin',
     WILBOOR_PASSWORD: 'abc',
     ARTIFACTS_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'oom-')),
     TIMEOUT_MS: '10000',

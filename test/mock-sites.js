@@ -60,9 +60,9 @@ function createMockServer(products) {
       );
     },
     'GET /painel': () =>
-      page(`<form method="post" action="/painel/login"><input type="text" name="usuario"><input type="password" name="senha"><button>Acessar</button></form>`),
+      page(`<form method="post" action="/painel/login"><input type="password" name="senha" placeholder="Senha"><button>Acessar</button></form>`),
     'POST /painel/login': (body, res) => {
-      state.wilLogged = body.includes('usuario=admin') && body.includes('senha=abc');
+      state.wilLogged = body === 'senha=abc';
       res.writeHead(302, { Location: '/painel/produtos' }).end();
     },
     'POST /painel/acao': (body, res) => {

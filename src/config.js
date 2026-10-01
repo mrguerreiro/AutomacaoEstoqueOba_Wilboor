@@ -67,7 +67,6 @@ const config = {
   wilboor: {
     loginUrl: env('WILBOOR_LOGIN_URL', 'https://wilboor.com.br/tocadochefe/painel'),
     productsUrl: env('WILBOOR_PRODUCTS_URL', 'https://wilboor.com.br/tocadochefe/painel/produtos'),
-    user: env('WILBOOR_USER'),
     password: env('WILBOOR_PASSWORD'),
     manageTabText: env('WILBOOR_MANAGE_TAB_TEXT', 'gerenciar produtos'),
     searchSelector: env(
@@ -112,7 +111,6 @@ function assertCredentials() {
     if (!config.oba.user) missing.push('OBA_USER (ou OBA_SESSION)');
     if (!config.oba.password) missing.push('OBA_PASSWORD (ou OBA_SESSION)');
   }
-  if (!config.wilboor.user) missing.push('WILBOOR_USER');
   if (!config.wilboor.password) missing.push('WILBOOR_PASSWORD');
   if (missing.length) {
     throw new Error(`Variáveis de ambiente ausentes: ${missing.join(', ')}`);
