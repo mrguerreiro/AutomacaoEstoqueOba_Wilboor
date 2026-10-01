@@ -15,46 +15,53 @@ Automação que, **todos os dias às 08h, 12h, 16h e 20h (horário de Brasília)
 Se o mesmo código aparecer mais de uma vez (ex.: *Esgotou!* e depois *Voltou!*), vale a notificação **mais recente**, para nunca
 pausar um produto que já voltou ao estoque. As ações são idempotentes: rodar de novo não “desfaz” nada.
 
-## Configuração (uma única vez) — GitHub Actions
+## Onde roda
 
-O agendamento roda no próprio GitHub, sem precisar deixar computador ligado.
+O obaobamix usa Cloudflare, que **bloqueia os servidores do GitHub**. Por isso a automação roda no seu **PC com
+Windows**, agendada pelo **Agendador de Tarefas**, que acorda o PC se ele estiver suspenso ou hibernando.
+Se o PC estiver **desligado**, a execução não acontece; se ele estava dormindo e perdeu um horário, a tarefa roda
+assim que ele voltar.
 
-1. **Salve a sessão do obaobamix** (o login de lá tem captcha "Não sou um robô", então ele é feito por você uma vez):
-   no seu computador, siga “Rodar no seu computador” abaixo até o `npm install` e rode `npm run salvar-sessao`.
-   Um navegador abre; faça login normalmente (marque o captcha), espere o Dashboard aparecer e pressione ENTER
-   no terminal. Ele mostra um texto longo — esse é o valor do secret `OBA_SESSION`.
-2. No repositório, vá em **Settings → Secrets and variables → Actions → New repository secret** e crie:
-   - `OBA_SESSION` — o texto gerado no passo 1
-   - `OBA_USER` e `OBA_PASSWORD` — login do obaobamix (usado só se a sessão expirar: a automação marca a caixinha
-     do captcha; se o Google pedir o desafio de imagens, ela para e o GitHub te avisa por e-mail — aí é só repetir o passo 1
-     e atualizar o `OBA_SESSION`)
-   - `WILBOOR_PASSWORD` — senha do painel Wilboor (o painel não tem usuário, só senha)
-3. Faça o merge deste código na branch principal (`master`). O GitHub só executa agendamentos da branch principal.
-4. Teste manualmente em **Actions → Sincronizar estoque obaobamix -> Wilboor → Run workflow**, marcando
-   **“Somente simular”** na primeira vez. O log mostra cada notificação e o que seria feito.
-5. Cada execução gera um artefato `relatorio-N` com `relatorio.json` e capturas de tela em caso de erro.
-   Se algo falhar, o GitHub envia e-mail avisando.
+## Configuração no Windows (uma única vez)
 
-> O GitHub pode atrasar execuções agendadas em alguns minutos em horários de pico. O horário está em
-> `.github/workflows/sincronizar-estoque.yml` (em UTC: 11h, 15h, 19h e 23h = 08h, 12h, 16h e 20h em Brasília).
+Requer [Node.js](https://nodejs.org) 20.12 ou mais recente. No PowerShell, dentro da pasta do projeto:
 
-## Rodar no seu computador
-
-Requer Node.js 20.12 ou mais recente.
-
-```bash
+```powershell
+git pull
 npm install
 npx playwright install chromium
-cp .env.example .env      # preencha as credenciais
-npm run salvar-sessao     # login manual no obaobamix (captcha); gera oba-session.json
+copy .env.example .env    # abra o .env e preencha OBA_USER, OBA_PASSWORD e WILBOOR_PASSWORD
+npm run salvar-sessao     # login manual no obaobamix (com captcha); gera oba-session.json
+npm run dry-run           # teste: mostra o que faria, sem clicar em nada
+```
+
+Se o teste mostrar as notificações e os produtos certos, crie a tarefa agendada:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File windows\agendar.ps1
+```
+
+Ela roda todos os dias às **08h, 12h, 16h e 20h**, com a opção **"Ativar o computador para executar esta tarefa"**.
+O script também tenta permitir os *temporizadores de ativação* no plano de energia; se não conseguir, ele mostra
+onde ativar manualmente.
+
+- **Testar a tarefa agora:** `Start-ScheduledTask -TaskName "Sincronizar Estoque Oba Wilboor"`
+- **Logs:** pasta `logs\` (um arquivo por dia; apagados após 30 dias). Relatório da última execução: `artifacts\relatorio.json`
+  e, em caso de erro, capturas de tela em `artifacts\`.
+- **Remover a tarefa:** `Unregister-ScheduledTask -TaskName "Sincronizar Estoque Oba Wilboor" -Confirm:$false`
+
+**Sessão do obaobamix expirada:** se o log disser que a sessão expirou ou que o captcha pediu desafio de imagens,
+rode `npm run salvar-sessao` de novo.
+
+> Em notebook na bateria ou em PCs com "Modern Standby", o Windows pode ignorar o pedido para acordar. Nesses casos,
+> configure o PC para não suspender quando estiver na tomada.
+
+## Comandos úteis
+
+```bash
 npm run dry-run           # simula, sem clicar em nada
 npm start                 # executa de verdade
-```
-
-Use `HEADFUL=true` no `.env` para ver o navegador trabalhando. Para agendar localmente (Linux/macOS), use o cron:
-
-```
-0 8,12,16,20 * * * cd /caminho/AutomacaoEstoqueOba_Wilboor && npm start >> automacao.log 2>&1
+npm start -- --headful    # executa mostrando o navegador
 ```
 
 ## Ajustes caso o layout dos sites mude

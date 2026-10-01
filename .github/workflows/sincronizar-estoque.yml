@@ -1,9 +1,9 @@
 name: Sincronizar estoque obaobamix -> Wilboor
 
+# O agendamento automático foi desativado: o Cloudflare do obaobamix bloqueia os
+# servidores do GitHub. A automação roda no PC pelo Agendador do Windows
+# (veja windows/agendar.ps1). Este workflow fica só para execução manual.
 on:
-  schedule:
-    # 08h, 12h, 16h e 20h no horário de Brasília (UTC-3) = 11h, 15h, 19h e 23h UTC
-    - cron: '0 11,15,19,23 * * *'
   workflow_dispatch:
     inputs:
       dry_run:

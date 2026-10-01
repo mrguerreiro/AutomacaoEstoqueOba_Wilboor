@@ -54,7 +54,7 @@ async function tickRecaptcha(page, label) {
   } catch {
     throw new Error(
       `[${label}] O captcha pediu um desafio de imagens e a sessão salva expirou. ` +
-        'Rode "npm run salvar-sessao" no seu computador e atualize o secret OBA_SESSION.',
+        'Rode "npm run salvar-sessao" de novo.',
     );
   }
 }
