@@ -1,6 +1,6 @@
 'use strict';
 
-const { firstVisible, isLoginPage, login, confirmModalIfAny } = require('./browser-utils');
+const { firstVisible, isLoginPage, login } = require('./browser-utils');
 
 async function openProducts(page, cfg) {
   await page.goto(cfg.productsUrl, { waitUntil: 'networkidle' });
@@ -132,13 +132,29 @@ async function applyStatus(page, { code, status }, cfg, { dryRun, log }) {
       outcomes.push('dry-run');
       continue;
     }
+    // O painel pausa/publica direto no clique, sem janela de confirmação.
     await page.locator(`[data-oom-action="${row.index}"]`).click();
     await page.waitForLoadState('networkidle').catch(() => {});
-    await page.waitForTimeout(500);
-    await confirmModalIfAny(page);
-    await page.waitForTimeout(1000);
     log(`  ${code}: clicou em "${verb}"`);
     outcomes.push(wanted === 'pause' ? 'pausado' : 'publicado');
+  }
+
+  // Confere se o botão trocou (Pausar -> Publicar ou vice-versa).
+  if (outcomes.some((o) => o === 'pausado' || o === 'publicado')) {
+    const opposite = wanted === 'pause' ? 'publish' : 'pause';
+    let ok = false;
+    for (let i = 0; i < 10 && !ok; i += 1) {
+      await page.waitForTimeout(1000);
+      const now = await markProduct(page, code, cfg);
+      ok = now.found && now.rows.every((r) => r.action === opposite);
+    }
+    if (!ok) {
+      await openProducts(page, cfg);
+      const now = await locateProduct(page, code, cfg);
+      ok = now.found && now.rows.every((r) => r.action === opposite);
+    }
+    if (!ok) throw new Error(`Cliquei em "${wanted === 'pause' ? 'Pausar' : 'Publicar'}" mas o produto não mudou de estado`);
+    log(`  ${code}: confirmado`);
   }
 
   // Volta para a listagem limpa para a próxima notificação.

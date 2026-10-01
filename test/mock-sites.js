@@ -55,7 +55,7 @@ function createMockServer(products) {
          <div class="row">${cards.join('')}</div>
          ${hasNext ? `<a href="/painel/produtos?p=${pg + 1}">Próxima</a>` : ''}`,
         `function filt(v){ document.querySelectorAll('.col').forEach(c=>{c.style.display=c.innerText.toUpperCase().includes(v.toUpperCase())?'':'none'}) }
-         function act(sku,a){ if(!confirm('Confirma?')) return false;
+         function act(sku,a){
            fetch('/painel/acao',{method:'POST',body:sku+'|'+a}).then(()=>location.reload()); return false; }`,
       );
     },

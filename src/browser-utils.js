@@ -85,19 +85,4 @@ async function login(page, { user, password, label }) {
   return true;
 }
 
-/** Confirma modais de confirmação comuns (SweetAlert, Bootstrap, diálogos ARIA). */
-async function confirmModalIfAny(page) {
-  const modal = await firstVisible(
-    page.locator('[role="dialog"], [role="alertdialog"], .modal.show, .modal.in, .swal2-popup, .swal-modal'),
-  );
-  if (!modal) return false;
-  const button = await firstVisible(
-    modal.getByRole('button', { name: /^(sim|confirmar|ok|pausar|publicar|continuar|yes)\b/i }),
-  );
-  if (!button) return false;
-  await button.click();
-  await page.waitForLoadState('networkidle').catch(() => {});
-  return true;
-}
-
-module.exports = { firstVisible, isLoginPage, login, confirmModalIfAny };
+module.exports = { firstVisible, isLoginPage, login };

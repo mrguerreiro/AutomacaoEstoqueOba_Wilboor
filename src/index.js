@@ -26,7 +26,6 @@ async function run() {
 
   const obaPage = await obaContext.newPage();
   const wilPage = await wilContext.newPage();
-  wilPage.on('dialog', (dialog) => dialog.accept().catch(() => {}));
 
   const report = { startedAt: new Date().toISOString(), dryRun: config.dryRun, actions: [] };
   try {
