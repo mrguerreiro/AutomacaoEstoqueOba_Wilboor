@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Estoque Oba → Wilboor",
+  "version": "1.0.0",
+  "description": "Lê as notificações Esgotou!/Voltou! do obaobamix e pausa/publica o produto no painel Wilboor.",
+  "permissions": [
+    "alarms",
+    "storage",
+    "notifications",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://app.obaobamix.com.br/*",
+    "https://wilboor.com.br/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Estoque Oba → Wilboor",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "128": "icone.png"
+  }
+}

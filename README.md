@@ -15,54 +15,51 @@ Automação que, **todos os dias às 08h, 12h, 16h e 20h (horário de Brasília)
 Se o mesmo código aparecer mais de uma vez (ex.: *Esgotou!* e depois *Voltou!*), vale a notificação **mais recente**, para nunca
 pausar um produto que já voltou ao estoque. As ações são idempotentes: rodar de novo não “desfaz” nada.
 
-## Onde roda
+## Como funciona
 
-O obaobamix usa Cloudflare, que **bloqueia os servidores do GitHub**. Por isso a automação roda no seu **PC com
-Windows**, agendada pelo **Agendador de Tarefas**, que acorda o PC se ele estiver suspenso ou hibernando.
-Se o PC estiver **desligado**, a execução não acontece; se ele estava dormindo e perdeu um horário, a tarefa roda
-assim que ele voltar.
+O obaobamix usa Cloudflare, que **bloqueia navegadores automatizados**. Por isso a automação é uma **extensão do
+Microsoft Edge** (pasta `extensao-edge/`) que roda dentro do seu próprio navegador, onde você já está logado.
 
-## Configuração no Windows (uma única vez)
+- Nos horários configurados (padrão 08h, 12h, 16h e 20h), ela abre uma janela minimizada, lê o sino do obaobamix,
+  entra no painel Wilboor e pausa/publica os produtos. Depois fecha a janela.
+- **Wilboor deslogou?** A extensão entra sozinha com a senha salva nela.
+- **obaobamix deslogou?** O login de lá tem captcha, que a extensão **não** resolve: ela pula a execução e mostra
+  um aviso do Windows "Faça login no obaobamix". Clique no aviso, entre no site (marque "Lembrar-me", se houver) e
+  as próximas execuções voltam a funcionar.
+- Ela começa em **"Somente simular"**: mostra o que faria, sem clicar. Desmarque quando conferir que está certo.
+- Ao final, mostra um aviso com quantos produtos foram pausados/publicados, ou se algo falhou.
 
-Requer [Node.js](https://nodejs.org) 20.12 ou mais recente. No PowerShell, dentro da pasta do projeto:
+## Instalação no Edge (uma única vez)
 
-```powershell
-git pull
-npm install
-npx playwright install chromium
-copy .env.example .env    # abra o .env e preencha OBA_USER, OBA_PASSWORD e WILBOOR_PASSWORD
-npm run salvar-sessao     # login manual no obaobamix (com captcha); gera oba-session.json
-npm run dry-run           # teste: mostra o que faria, sem clicar em nada
-```
+1. Baixe/atualize o projeto (`git pull`) — a extensão está na pasta `extensao-edge`.
+2. No Edge, abra `edge://extensions`, ligue **"Modo do desenvolvedor"** e clique em **"Carregar descompactado"**.
+   Escolha a pasta `extensao-edge`.
+3. Clique no ícone de quebra-cabeça da barra do Edge e fixe **"Estoque Oba → Wilboor"**. Clique nele:
+   - digite a **senha do painel Wilboor** e clique em **Salvar**;
+   - esteja logado no obaobamix e clique em **Simular agora**. O log aparece na própria janelinha.
+4. Se a simulação estiver certa, desmarque **"Somente simular"** e clique em **Salvar**.
 
-Se o teste mostrar as notificações e os produtos certos, crie a tarefa agendada:
+### Para rodar com o PC "parado"
 
-```powershell
-powershell -ExecutionPolicy Bypass -File windows\agendar.ps1
-```
+- **Edge fechado:** em `edge://settings/system`, ligue **"Continuar executando extensões e aplicativos em segundo
+  plano quando o Microsoft Edge estiver fechado"**.
+- **PC suspenso/hibernando:** crie a tarefa que acorda o PC antes dos horários (no PowerShell, na pasta do projeto):
 
-Ela roda todos os dias às **08h, 12h, 16h e 20h**, com a opção **"Ativar o computador para executar esta tarefa"**.
-O script também tenta permitir os *temporizadores de ativação* no plano de energia; se não conseguir, ele mostra
-onde ativar manualmente.
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File windows\acordar-pc.ps1
+  ```
 
-- **Testar a tarefa agora:** `Start-ScheduledTask -TaskName "Sincronizar Estoque Oba Wilboor"`
-- **Logs:** pasta `logs\` (um arquivo por dia; apagados após 30 dias). Relatório da última execução: `artifacts\relatorio.json`
-  e, em caso de erro, capturas de tela em `artifacts\`.
-- **Remover a tarefa:** `Unregister-ScheduledTask -TaskName "Sincronizar Estoque Oba Wilboor" -Confirm:$false`
-
-**Sessão do obaobamix expirada:** se o log disser que a sessão expirou ou que o captcha pediu desafio de imagens,
-rode `npm run salvar-sessao` de novo.
+  Se o PC perdeu um horário dormindo, a extensão roda assim que ele acordar. **Desligado**, nada roda.
 
 > Em notebook na bateria ou em PCs com "Modern Standby", o Windows pode ignorar o pedido para acordar. Nesses casos,
 > configure o PC para não suspender quando estiver na tomada.
 
-## Comandos úteis
+> A senha do Wilboor fica guardada nas configurações da extensão, no seu perfil do Edge, neste PC.
 
-```bash
-npm run dry-run           # simula, sem clicar em nada
-npm start                 # executa de verdade
-npm start -- --headful    # executa mostrando o navegador
-```
+## Versão por linha de comando (Playwright)
+
+A pasta `src/` tem a mesma automação usando Playwright (`npm start`, `npm run dry-run`). Ela **é bloqueada pelo
+Cloudflare do obaobamix** e fica apenas como referência e para os testes.
 
 ## Ajustes caso o layout dos sites mude
 
@@ -77,4 +74,5 @@ podem ser ajustados por variáveis de ambiente — veja `src/config.js` (por exe
 npm test
 ```
 
-Inclui testes da interpretação das notificações e um teste ponta a ponta contra versões simuladas dos dois sites.
+Inclui testes da interpretação das notificações e testes ponta a ponta (extensão e Playwright) contra versões
+simuladas dos dois sites.
