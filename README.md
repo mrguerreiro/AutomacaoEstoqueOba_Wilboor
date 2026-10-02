@@ -24,8 +24,8 @@ Microsoft Edge** (pasta `extensao-edge/`) que roda dentro do seu próprio navega
   entra no painel Wilboor e pausa/publica os produtos. Depois fecha a janela.
 - **Wilboor deslogou?** A extensão entra sozinha com a senha salva nela.
 - **obaobamix deslogou?** O login de lá tem captcha, que a extensão **não** resolve: ela pula a execução e mostra
-  um aviso do Windows "Faça login no obaobamix". Clique no aviso, entre no site (marque "Lembrar-me", se houver) e
-  as próximas execuções voltam a funcionar.
+  um aviso do Windows "Faça login no obaobamix". Clique no aviso e entre no site (marque "Lembrar-me", se houver):
+  a extensão percebe o login e roda a rotina sozinha cerca de 1 minuto depois.
 - Ela começa em **"Somente simular"**: mostra o que faria, sem clicar. Desmarque quando conferir que está certo.
 - Ao final, mostra um aviso com quantos produtos foram pausados/publicados, ou se algo falhou.
 

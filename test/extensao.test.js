@@ -27,6 +27,8 @@ test('extensão: lê o sino e pausa/publica no Wilboor', { timeout: 600000 }, as
   const manifest = JSON.parse(fs.readFileSync(path.join(extDir, 'manifest.json'), 'utf8'));
   manifest.host_permissions.push('http://127.0.0.1/*');
   fs.writeFileSync(path.join(extDir, 'manifest.json'), JSON.stringify(manifest));
+  const bgPath = path.join(extDir, 'background.js');
+  fs.writeFileSync(bgPath, fs.readFileSync(bgPath, 'utf8').replace("const OBA_HOSTS = ['app.obaobamix.com.br'];", "const OBA_HOSTS = ['127.0.0.1'];"));
 
   const context = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), 'prof-')), {
     channel: 'chromium',
@@ -45,7 +47,13 @@ test('extensão: lê o sino e pausa/publica no Wilboor', { timeout: 600000 }, as
     assert.deepStrictEqual(alarms, ['sync-08:00', 'sync-12:00', 'sync-16:00', 'sync-20:00']);
 
     await sw.evaluate(
-      ({ b }) => chrome.storage.local.set({ obaUrl: `${b}/oba`, wilboorUrl: `${b}/painel/produtos`, wilboorPassword: 'abc' }),
+      ({ b }) =>
+        chrome.storage.local.set({
+          obaUrl: `${b}/oba`,
+          wilboorUrl: `${b}/painel/produtos`,
+          wilboorPassword: 'abc',
+          retryAfterLoginMs: 3000,
+        }),
       { b: base },
     );
 
@@ -117,10 +125,30 @@ test('extensão: lê o sino e pausa/publica no Wilboor', { timeout: 600000 }, as
       'OOM-0001': 'publicado',
     });
 
-    // 5) Sessão do obaobamix expirada: avisa e não mexe no Wilboor
+    // 5) Sessão do obaobamix expirada: avisa, não mexe no Wilboor e fica pendente
     await context.clearCookies();
     const expired = await sw.evaluate(() => globalThis.runSync({ trigger: 'teste', dryRun: false }));
     assert.match(expired.fatal, /Sessão do obaobamix expirada/);
+    assert.strictEqual(await sw.evaluate(async () => (await chrome.storage.local.get('pendingAfterLogin')).pendingAfterLogin), true);
+
+    // 6) Você entra no obaobamix numa aba normal: a rotina roda sozinha logo depois
+    const before = await sw.evaluate(async () => (await chrome.storage.local.get('runs')).runs.length);
+    const tab = await context.newPage();
+    await tab.goto(`${base}/oba`);
+    await tab.fill('input[type=email]', 'oba@x.com');
+    await tab.fill('input[type=password]', '123');
+    await Promise.all([tab.waitForNavigation(), tab.click('button[type=submit]')]);
+    let auto = null;
+    for (let i = 0; i < 240 && !auto; i += 1) {
+      await new Promise((r) => setTimeout(r, 500));
+      auto = await sw.evaluate(async (n) => {
+        const { runs } = await chrome.storage.local.get('runs');
+        return runs.length > n && runs[0].finishedAt ? runs[0] : null;
+      }, before);
+    }
+    assert.ok(auto, 'a rotina deveria ter rodado depois do login');
+    assert.strictEqual(auto.trigger, 'após login no obaobamix');
+    assert.ifError(auto.fatal);
   } finally {
     await context.close();
     server.close();
