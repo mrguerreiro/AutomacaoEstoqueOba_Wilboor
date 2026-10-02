@@ -6,6 +6,7 @@ export const DEFAULTS = {
   dryRun: true, // começa em "somente simular"; desligue no popup depois de conferir
   wilboorPassword: '',
   obaUrl: 'https://app.obaobamix.com.br/',
+  retryAfterLoginMs: 60 * 1000, // espera depois que você entra no obaobamix
   wilboorUrl: 'https://wilboor.com.br/tocadochefe/painel/produtos',
 };
 
@@ -34,7 +35,29 @@ chrome.runtime.onInstalled.addListener(scheduleAlarms);
 chrome.runtime.onStartup.addListener(scheduleAlarms);
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name.startsWith('sync-')) runSync({ trigger: `agendado ${alarm.name.slice(5)}` });
+  if (alarm.name === 'apos-login') runSync({ trigger: 'após login no obaobamix' });
 });
+
+// ---------- Rodar de novo depois do login no obaobamix ----------
+// Quando uma execução encontra o obaobamix deslogado, fica "pendente". Assim que
+// você entra no site (em qualquer aba), a rotina é agendada para logo depois.
+
+const OBA_HOSTS = ['app.obaobamix.com.br'];
+
+chrome.webNavigation.onCompleted.addListener(
+  async ({ tabId, frameId }) => {
+    if (frameId !== 0 || running) return;
+    const { pendingAfterLogin } = await chrome.storage.local.get('pendingAfterLogin');
+    if (!pendingAfterLogin) return;
+    const state = await exec(tabId, pageState).catch(() => null);
+    if (!state || state.loggedOut || state.blocked) return;
+    const { retryAfterLoginMs } = await getSettings();
+    await chrome.storage.local.set({ pendingAfterLogin: false });
+    await chrome.alarms.create('apos-login', { when: Date.now() + retryAfterLoginMs });
+    notify('ok', 'Estoque Oba → Wilboor', 'Login no obaobamix detectado. A rotina vai rodar em instantes.');
+  },
+  { url: OBA_HOSTS.map((hostEquals) => ({ hostEquals })) },
+);
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg.type === 'run') {
     runSync({ trigger: 'manual', dryRun: msg.dryRun }).then(reply);
@@ -96,6 +119,7 @@ let running = false;
 export async function runSync({ trigger, dryRun } = {}) {
   if (running) return { skipped: 'já existe uma execução em andamento' };
   running = true;
+  await chrome.storage.local.set({ pendingAfterLogin: false });
   const settings = await getSettings();
   const simular = dryRun ?? settings.dryRun;
   const run = { startedAt: new Date().toISOString(), trigger, dryRun: simular, log: [], actions: [] };
@@ -117,7 +141,8 @@ export async function runSync({ trigger, dryRun } = {}) {
     const obaState = await exec(obaTab, pageState);
     if (obaState.blocked) throw new Error('obaobamix bloqueou o acesso (Cloudflare)');
     if (obaState.loggedOut) {
-      notify('oba-login', 'Faça login no obaobamix', 'A sessão expirou. Clique aqui, entre no site e a próxima execução funcionará.');
+      await chrome.storage.local.set({ pendingAfterLogin: true });
+      notify('oba-login', 'Faça login no obaobamix', 'A sessão expirou. Clique aqui e entre no site: a rotina roda sozinha logo depois.');
       throw new Error('Sessão do obaobamix expirada: faça login no site');
     }
     const oba = await exec(obaTab, obaReadNotifications);

@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Estoque Oba → Wilboor",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Lê as notificações Esgotou!/Voltou! do obaobamix e pausa/publica o produto no painel Wilboor.",
   "permissions": [
     "alarms",
     "storage",
     "notifications",
     "tabs",
-    "scripting"
+    "scripting",
+    "webNavigation"
   ],
   "host_permissions": [
     "https://app.obaobamix.com.br/*",
